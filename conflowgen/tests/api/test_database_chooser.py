@@ -1,3 +1,4 @@
+import os
 import unittest
 import unittest.mock
 
@@ -57,3 +58,17 @@ class TestDatabaseChooser(unittest.TestCase):
     def test_close_current_connection_without_connection(self):
         with self.assertRaises(NoCurrentConnectionException):
             self.database_chooser.close_current_connection()
+
+    def test_get_uri_name(self):
+        this_dir = os.path.dirname(__file__)
+        database_chooser = DatabaseChooser(sqlite_databases_directory=os.path.join(this_dir, "databases"))
+        demo_file_name = "demo_continental_gateway.sqlite"
+        database_chooser.create_new_sqlite_database(
+            demo_file_name,
+            assume_tas=True,
+            overwrite=True
+        )
+
+        db_path = self.database_chooser.get_current_database_uri()
+        expected_db_path = "conflowgen/data/databases/demo_continental_gateway.sqlite"
+        self.assertTrue(db_path.endswith(expected_db_path))

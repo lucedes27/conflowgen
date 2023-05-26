@@ -39,7 +39,9 @@ class SqliteDatabaseConnection:
         'cache_size': -32 * 1024,  # counted in KiB, thus this means 32 MB cache
         'foreign_keys': 1,
         'ignore_check_constraints': 0,
-        'synchronous': 0
+        'synchronous': 0,
+        'mmap_size': 30000000000,
+        'page_size': 32768,
     }
 
     SQLITE_DEFAULT_DIR = os.path.abspath(
@@ -76,26 +78,32 @@ class SqliteDatabaseConnection:
 
     def choose_database(
             self,
-            database_name: str,
+            database_name: str | SqliteDatabase,
             create: bool = False,
             reset: bool = False,
             **seeder_options
     ) -> SqliteDatabase:
-        if database_name == ":memory:":
-            path_to_sqlite_database = ":memory:"
-            sqlite_database_existed_before = False
+        if ":memory:" in database_name:
+            path_to_sqlite_database = database_name
+            sqlite_database_existed_before = ("cache=shared" in database_name)
         else:
             path_to_sqlite_database, sqlite_database_existed_before = self._load_or_create_sqlite_file_on_hard_drive(
                 database_name=database_name, create=create, reset=reset
             )
 
         self.logger.debug(f"Opening file {path_to_sqlite_database}")
-        self.sqlite_db_connection = SqliteDatabase(
-            path_to_sqlite_database,
-            pragmas=self.SQLITE_DEFAULT_SETTINGS
-        )
-        database_proxy.initialize(self.sqlite_db_connection)
-        self.sqlite_db_connection.connect()
+        if type(database_name) is SqliteDatabase:
+            self.sqlite_db_connection = database_name
+            database_proxy.initialize(self.sqlite_db_connection)
+            sqlite_database_existed_before = True
+        else:
+            self.sqlite_db_connection = SqliteDatabase(
+                path_to_sqlite_database,
+                pragmas=self.SQLITE_DEFAULT_SETTINGS,
+                uri=True
+            )
+            database_proxy.initialize(self.sqlite_db_connection)
+            self.sqlite_db_connection.connect()  # Need to somehow connect with URI = True
 
         self.logger.debug(f'journal_mode: {self.sqlite_db_connection.journal_mode}')
         self.logger.debug(f'cache_size: {self.sqlite_db_connection.cache_size}')

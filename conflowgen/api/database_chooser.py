@@ -1,3 +1,4 @@
+from __future__ import annotations
 import logging
 import typing
 
@@ -17,12 +18,23 @@ class DatabaseChooser:
     databases.
     """
 
+    __instance = None
+
+    def __new__(cls, sqlite_databases_directory: typing.Optional[str] = None):
+        if cls.__instance is None:
+            cls.__instance = super(DatabaseChooser, cls).__new__(cls)
+            cls.__instance.__initialized = False
+        return cls.__instance
+
     def __init__(self, sqlite_databases_directory: typing.Optional[str] = None):
         """
         Args:
             sqlite_databases_directory: The DatabaseChooser opens one directory. All databases are saved to and load
                 from this directory. It defaults to ``<project root>/data/databases/``.
         """
+        if self.__initialized:
+            return
+        self.__initialized = True
         self.logger = logging.getLogger("conflowgen")
         self.sqlite_database_connection = SqliteDatabaseConnection(
             sqlite_databases_directory=sqlite_databases_directory
@@ -48,7 +60,7 @@ class DatabaseChooser:
 
     def create_new_sqlite_database(
             self,
-            file_name: str,
+            file_name: str | SqliteDatabase,
             overwrite: bool = False,
             **seeder_options
     ) -> None:
@@ -77,6 +89,19 @@ class DatabaseChooser:
         self.peewee_sqlite_db = self.sqlite_database_connection.choose_database(
             file_name, create=True, reset=overwrite, **seeder_options
         )
+
+    def get_current_database_uri(self) -> str:
+        """
+        Returns:
+            The file name of the currently opened SQLite database
+        """
+        if self.peewee_sqlite_db:
+            uri_string = self.peewee_sqlite_db.database
+            uri_string = uri_string.replace("\\", "/")
+            uri_string = "file:///" + uri_string
+            return uri_string
+        else:
+            raise NoCurrentConnectionException("You must first create a connection to an SQLite database.")
 
     def close_current_connection(self) -> None:
         """
