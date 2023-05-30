@@ -42,6 +42,8 @@ class ContainerFlowAdjustmentByVehicleTypeAnalysisSummary(ContainerFlowAdjustmen
     The analysis summary returns a data structure that can be used for generating reports (e.g., in text or as a figure)
     as it is the case with :class:`.ContainerFlowAdjustmentByVehicleTypeAnalysisSummaryReport`.
     """
+    summary: typing.Optional[ContainerFlowAdjustedToVehicleType] = None
+    initial_to_adjusted_outbound_flow: typing.Optional[ContainerFlowAdjustedToVehicleType] = None
 
     def get_summary(
             self,
@@ -72,18 +74,27 @@ class ContainerFlowAdjustmentByVehicleTypeAnalysisSummary(ContainerFlowAdjustmen
             use_cache=use_cache
         )
 
-        initial_to_adjusted_outbound_flow_in_teu = initial_to_adjusted_outbound_flow.teu
-        adjusted_to_dict = {
-            "unchanged": 0,
-            **{
-                str(vehicle_type): 0
-                for vehicle_type in ModeOfTransport
+        if ContainerFlowAdjustmentByVehicleTypeAnalysisSummary.summary is None \
+            or ContainerFlowAdjustmentByVehicleTypeAnalysisSummary.initial_to_adjusted_outbound_flow != \
+                initial_to_adjusted_outbound_flow:
+            initial_to_adjusted_outbound_flow_in_teu = initial_to_adjusted_outbound_flow.teu
+            adjusted_to_dict = {
+                "unchanged": 0,
+                **{
+                    str(vehicle_type): 0
+                    for vehicle_type in ModeOfTransport
+                }
             }
-        }
-        for vehicle_type_initial, distribution in initial_to_adjusted_outbound_flow_in_teu.items():
-            for vehicle_type_adjusted, capacity in distribution.items():
-                if vehicle_type_initial == vehicle_type_adjusted:
-                    adjusted_to_dict["unchanged"] += capacity
-                else:
-                    adjusted_to_dict[str(vehicle_type_adjusted)] += capacity
-        return ContainerFlowAdjustedToVehicleType(**adjusted_to_dict)
+            for vehicle_type_initial, distribution in initial_to_adjusted_outbound_flow_in_teu.items():
+                for vehicle_type_adjusted, capacity in distribution.items():
+                    if vehicle_type_initial == vehicle_type_adjusted:
+                        adjusted_to_dict["unchanged"] += capacity
+                    else:
+                        adjusted_to_dict[str(vehicle_type_adjusted)] += capacity
+
+            ContainerFlowAdjustmentByVehicleTypeAnalysisSummary.summary = \
+                ContainerFlowAdjustedToVehicleType(**adjusted_to_dict)
+            ContainerFlowAdjustmentByVehicleTypeAnalysisSummary.initial_to_adjusted_outbound_flow = \
+                initial_to_adjusted_outbound_flow
+
+        return ContainerFlowAdjustmentByVehicleTypeAnalysisSummary.summary
