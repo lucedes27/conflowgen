@@ -1,6 +1,7 @@
 import datetime
 import unittest
 
+from conflowgen import ContainerDwellTimeAnalysis
 from conflowgen.analyses.abstract_analysis import get_hour_based_range
 
 
@@ -71,3 +72,8 @@ class TestHelpers(unittest.TestCase):
             include_end=False
         )
         self.assertEqual(0, len(_range))
+
+    def test_singleton_pattern(self):
+        analysis1 = ContainerDwellTimeAnalysis()
+        analysis2 = ContainerDwellTimeAnalysis()
+        self.assertEqual(analysis1, analysis2)

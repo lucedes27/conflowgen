@@ -59,8 +59,7 @@ class Singleton(type):
         return cls.instance
 
 
-class AbstractAnalysis(abc.ABC):
-    __metaclass__ = Singleton
+class AbstractAnalysis(metaclass=Singleton):
 
     def __init__(
             self,
