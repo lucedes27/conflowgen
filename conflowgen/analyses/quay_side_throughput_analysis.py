@@ -23,6 +23,9 @@ class QuaySideThroughputAnalysis(AbstractAnalysis):
         # barges are counted as hinterland here
     }
 
+    quay_side_throughput: typing.Optional[dict[datetime.date, float]] = None
+    selected_containers: typing.Optional[typing.List[Container]] = None
+
     @classmethod
     def get_throughput_over_time(
             cls,
@@ -56,43 +59,50 @@ class QuaySideThroughputAnalysis(AbstractAnalysis):
 
         containers_that_pass_quay_side: typing.List[datetime.datetime] = []
 
-        container: Container
-        for container in Container.select():
-            if start_date and container.get_arrival_time(use_cache=use_cache) < start_date:
-                continue
-            if end_date and container.get_departure_time(use_cache=use_cache) > end_date:
-                continue
+        selected_containers = Container.select()
 
-            if inbound:
-                mode_of_transport_at_container_arrival: ModeOfTransport = container.delivered_by
-                if mode_of_transport_at_container_arrival in cls.QUAY_SIDE_VEHICLES:
-                    vehicle: LargeScheduledVehicle = container.delivered_by_large_scheduled_vehicle
-                    time_of_container_crossing_quay_side = vehicle.scheduled_arrival
-                    containers_that_pass_quay_side.append(time_of_container_crossing_quay_side)
+        if QuaySideThroughputAnalysis.quay_side_throughput is None or \
+                QuaySideThroughputAnalysis.selected_containers != selected_containers:
+            container: Container
+            for container in selected_containers:
+                if start_date and container.get_arrival_time(use_cache=use_cache) < start_date:
+                    continue
+                if end_date and container.get_departure_time(use_cache=use_cache) > end_date:
+                    continue
 
-            if outbound:
-                mode_of_transport_at_container_departure: ModeOfTransport = container.picked_up_by
-                if mode_of_transport_at_container_departure in cls.QUAY_SIDE_VEHICLES:
-                    vehicle: LargeScheduledVehicle = container.picked_up_by_large_scheduled_vehicle
-                    time_of_container_crossing_quay_side = vehicle.scheduled_arrival
-                    containers_that_pass_quay_side.append(time_of_container_crossing_quay_side)
+                if inbound:
+                    mode_of_transport_at_container_arrival: ModeOfTransport = container.delivered_by
+                    if mode_of_transport_at_container_arrival in cls.QUAY_SIDE_VEHICLES:
+                        vehicle: LargeScheduledVehicle = container.delivered_by_large_scheduled_vehicle
+                        time_of_container_crossing_quay_side = vehicle.scheduled_arrival
+                        containers_that_pass_quay_side.append(time_of_container_crossing_quay_side)
 
-        if len(containers_that_pass_quay_side) == 0:
-            return {}
+                if outbound:
+                    mode_of_transport_at_container_departure: ModeOfTransport = container.picked_up_by
+                    if mode_of_transport_at_container_departure in cls.QUAY_SIDE_VEHICLES:
+                        vehicle: LargeScheduledVehicle = container.picked_up_by_large_scheduled_vehicle
+                        time_of_container_crossing_quay_side = vehicle.scheduled_arrival
+                        containers_that_pass_quay_side.append(time_of_container_crossing_quay_side)
 
-        first_arrival = min(containers_that_pass_quay_side)
-        last_pickup = max(containers_that_pass_quay_side)
+            if len(containers_that_pass_quay_side) == 0:
+                return {}
 
-        first_time_window = get_week_based_time_window(first_arrival) - datetime.timedelta(weeks=1)
-        last_time_window = get_week_based_time_window(last_pickup) + datetime.timedelta(weeks=1)
+            first_arrival = min(containers_that_pass_quay_side)
+            last_pickup = max(containers_that_pass_quay_side)
 
-        quay_side_throughput: typing.Dict[datetime.date, float] = {
-            time_window: 0
-            for time_window in get_week_based_range(first_time_window, last_time_window)
-        }
+            first_time_window = get_week_based_time_window(first_arrival) - datetime.timedelta(weeks=1)
+            last_time_window = get_week_based_time_window(last_pickup) + datetime.timedelta(weeks=1)
 
-        for time_of_container_crossing_quay_side in containers_that_pass_quay_side:
-            time_window_of_container = get_week_based_time_window(time_of_container_crossing_quay_side)
-            quay_side_throughput[time_window_of_container] += 1  # counted in boxes
+            quay_side_throughput: typing.Dict[datetime.date, float] = {
+                time_window: 0
+                for time_window in get_week_based_range(first_time_window, last_time_window)
+            }
 
-        return quay_side_throughput
+            for time_of_container_crossing_quay_side in containers_that_pass_quay_side:
+                time_window_of_container = get_week_based_time_window(time_of_container_crossing_quay_side)
+                quay_side_throughput[time_window_of_container] += 1  # counted in boxes
+
+            QuaySideThroughputAnalysis.quay_side_throughput = quay_side_throughput
+            QuaySideThroughputAnalysis.selected_containers = selected_containers
+
+        return QuaySideThroughputAnalysis.quay_side_throughput
