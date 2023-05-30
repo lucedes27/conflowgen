@@ -19,9 +19,9 @@ class InboundAndOutboundVehicleCapacityAnalysis(AbstractAnalysis):
     The analysis returns a data structure that can be used for generating reports (e.g., in text or as a figure)
     as it is the case with :class:`.InboundAndOutboundVehicleCapacityAnalysisReport`.
     """
-    inbound_container_volumes_by_vehicle_type = None
-    outbound_container_volumes_by_vehicle_type = None
-    selected_containers = None
+    inbound_container_volumes_by_vehicle_type: typing.Optional[ContainerVolumeByVehicleType] = None
+    outbound_container_volumes_by_vehicle_type: typing.Optional[ContainerVolumeByVehicleType] = None
+    selected_containers: typing.Optional[typing.Collection[Container]] = None
 
     def __init__(self, transportation_buffer: float):
         super().__init__(

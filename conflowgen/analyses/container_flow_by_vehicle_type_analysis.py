@@ -16,8 +16,8 @@ class ContainerFlowByVehicleTypeAnalysis(AbstractAnalysis):
     The analysis returns a data structure that can be used for generating reports (e.g., in text or as a figure)
     as it is the case with :class:`.ContainerFlowByVehicleTypeAnalysisReport`.
     """
-    inbound_to_outbound_flow = None
-    selected_containers = None
+    inbound_to_outbound_flow: typing.Optional[ContainerVolumeFromOriginToDestination] = None
+    selected_containers: typing.Optional[typing.Collection[Container]] = None
 
     @staticmethod
     def get_inbound_to_outbound_flow(

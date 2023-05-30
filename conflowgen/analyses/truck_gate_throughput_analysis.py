@@ -15,7 +15,7 @@ class TruckGateThroughputAnalysis(AbstractAnalysis):
     as it is the case with :class:`.TruckGateThroughputAnalysisReport`.
     """
 
-    throughput_over_time: typing.Optional[dict[datetime.datetime, float]] = None
+    throughput_over_time: typing.Optional[typing.Dict[datetime.datetime, float]] = None
     selected_containers: typing.Optional[typing.List[Container]] = None
 
     @classmethod

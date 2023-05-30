@@ -28,8 +28,9 @@ class InboundToOutboundVehicleCapacityUtilizationAnalysis(AbstractAnalysis):
     The analysis returns a data structure that can be used for generating reports (e.g., in text or as a figure)
     as it is the case with :class:`.InboundToOutboundCapacityUtilizationAnalysisReport`.
     """
-    inbound_and_outbound_capacity_of_each_vehicle = None
-    selected_vehicles = None
+    inbound_and_outbound_capacity_of_each_vehicle: \
+        typing.Optional[typing.Dict[VehicleIdentifier, typing.Tuple[float, float]]] = None
+    selected_vehicles: typing.Optional[typing.Collection[LargeScheduledVehicle]] = None
 
     def __init__(self, transportation_buffer: float):
         super().__init__(

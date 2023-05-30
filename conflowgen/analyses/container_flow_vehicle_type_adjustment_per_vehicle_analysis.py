@@ -18,8 +18,8 @@ class ContainerFlowVehicleTypeAdjustmentPerVehicleAnalysis(AbstractAnalysis):
     as it is the case with :class:`.ContainerFlowVehicleTypeAdjustmentPerVehicleAnalysisReport`.
     """
 
-    vehicle_type_adjustments_per_vehicle = None
-    selected_containers = None
+    vehicle_type_adjustments_per_vehicle: typing.Optional[typing.Dict[VehicleIdentifier, int]] = None
+    selected_containers: typing.Optional[typing.Collection[Container]] = None
 
     def get_vehicle_type_adjustments_per_vehicle(
             self,

@@ -23,7 +23,7 @@ class QuaySideThroughputAnalysis(AbstractAnalysis):
         # barges are counted as hinterland here
     }
 
-    quay_side_throughput: typing.Optional[dict[datetime.date, float]] = None
+    quay_side_throughput: typing.Optional[typing.Dict[datetime.date, float]] = None
     selected_containers: typing.Optional[typing.List[Container]] = None
 
     @classmethod

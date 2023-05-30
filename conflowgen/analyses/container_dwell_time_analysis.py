@@ -15,8 +15,8 @@ class ContainerDwellTimeAnalysis(AbstractAnalysis):
     The analysis returns a data structure that can be used for generating reports (e.g., in text or as a figure)
     as it is the case with :class:`.ContainerDwellTimeAnalysisReport`.
     """
-    container_dwell_times = None
-    selected_containers = None
+    container_dwell_times: typing.Optional[set[datetime.timedelta]] = None
+    selected_containers: typing.Optional[typing.Collection[Container]] = None
 
     def get_container_dwell_times(
             self,

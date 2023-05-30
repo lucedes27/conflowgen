@@ -15,8 +15,8 @@ class ContainerFlowAdjustmentByVehicleTypeAnalysis(AbstractAnalysis):
     The analysis returns a data structure that can be used for generating reports (e.g., in text or as a figure)
     as it is the case with :class:`.ContainerFlowAdjustmentByVehicleTypeAnalysisReport`.
     """
-    containerVolumeFromOriginToDestination = None
-    selected_containers = None
+    containerVolumeFromOriginToDestination: typing.Optional[ContainerVolumeFromOriginToDestination] = None
+    selected_containers: typing.Optional[typing.Collection[Container]] = None
 
     @staticmethod
     def get_initial_to_adjusted_outbound_flow(
