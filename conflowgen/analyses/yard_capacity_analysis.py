@@ -15,6 +15,9 @@ class YardCapacityAnalysis(AbstractAnalysis):
     as it is the case with :class:`.YardCapacityAnalysisReport`.
     """
 
+    used_yard_capacity_over_time: typing.Optional[typing.Dict[datetime.datetime, float]] = None
+    selected_containers: typing.Optional[typing.List[Container]] = None
+
     def get_used_yard_capacity_over_time(
             self,
             storage_requirement: typing.Union[str, typing.Collection, StorageRequirement] = "all",
@@ -58,38 +61,43 @@ class YardCapacityAnalysis(AbstractAnalysis):
 
         container_stays: typing.List[typing.Tuple[datetime.datetime, datetime.datetime, float]] = []
 
-        container: Container
-        for container in selected_containers:
-            container_stays.append(
-                (
-                    container.get_arrival_time(use_cache=use_cache),
-                    container.get_departure_time(use_cache=use_cache),
-                    container.occupied_teu
+        if YardCapacityAnalysis.used_yard_capacity_over_time is None or \
+                YardCapacityAnalysis.selected_containers != selected_containers:
+            container: Container
+            for container in selected_containers:
+                container_stays.append(
+                    (
+                        container.get_arrival_time(use_cache=use_cache),
+                        container.get_departure_time(use_cache=use_cache),
+                        container.occupied_teu
+                    )
                 )
-            )
 
-        if len(container_stays) == 0:
-            return {}
+            if len(container_stays) == 0:
+                return {}
 
-        first_arrival, _, _ = min(container_stays, key=lambda x: x[0])
-        _, last_pickup, _ = max(container_stays, key=lambda x: x[1])
+            first_arrival, _, _ = min(container_stays, key=lambda x: x[0])
+            _, last_pickup, _ = max(container_stays, key=lambda x: x[1])
 
-        first_time_window = get_hour_based_time_window(first_arrival) - datetime.timedelta(hours=1)
-        last_time_window = get_hour_based_time_window(last_pickup) + datetime.timedelta(hours=1)
+            first_time_window = get_hour_based_time_window(first_arrival) - datetime.timedelta(hours=1)
+            last_time_window = get_hour_based_time_window(last_pickup) + datetime.timedelta(hours=1)
 
-        used_yard_capacity: typing.Dict[datetime.datetime, float] = {
-            time_window: 0
-            for time_window in get_hour_based_range(
-                first_time_window, last_time_window, include_end=(not smoothen_peaks)
-            )
-        }
+            used_yard_capacity: typing.Dict[datetime.datetime, float] = {
+                time_window: 0
+                for time_window in get_hour_based_range(
+                    first_time_window, last_time_window, include_end=(not smoothen_peaks)
+                )
+            }
 
-        for (container_enters_yard, container_leaves_yard, teu_factor_of_container) in container_stays:
-            time_window_at_entering = get_hour_based_time_window(container_enters_yard)
-            time_window_at_leaving = get_hour_based_time_window(container_leaves_yard)
-            for time_window in get_hour_based_range(
-                    time_window_at_entering, time_window_at_leaving, include_end=(not smoothen_peaks)
-            ):
-                used_yard_capacity[time_window] += teu_factor_of_container
+            for (container_enters_yard, container_leaves_yard, teu_factor_of_container) in container_stays:
+                time_window_at_entering = get_hour_based_time_window(container_enters_yard)
+                time_window_at_leaving = get_hour_based_time_window(container_leaves_yard)
+                for time_window in get_hour_based_range(
+                        time_window_at_entering, time_window_at_leaving, include_end=(not smoothen_peaks)
+                ):
+                    used_yard_capacity[time_window] += teu_factor_of_container
 
-        return used_yard_capacity
+            YardCapacityAnalysis.used_yard_capacity_over_time = used_yard_capacity
+            YardCapacityAnalysis.selected_containers = selected_containers
+
+        return YardCapacityAnalysis.used_yard_capacity_over_time
