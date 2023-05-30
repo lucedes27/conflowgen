@@ -15,6 +15,9 @@ class TruckGateThroughputAnalysis(AbstractAnalysis):
     as it is the case with :class:`.TruckGateThroughputAnalysisReport`.
     """
 
+    throughput_over_time: typing.Optional[dict[datetime.datetime, float]] = None
+    selected_containers: typing.Optional[typing.List[Container]] = None
+
     @classmethod
     def get_throughput_over_time(
             cls,
@@ -47,48 +50,53 @@ class TruckGateThroughputAnalysis(AbstractAnalysis):
             (Container.delivered_by == ModeOfTransport.truck) | (Container.picked_up_by == ModeOfTransport.truck)
         )
 
-        container: Container
-        for container in selected_containers:
-            if inbound:
-                mode_of_transport_at_container_arrival: ModeOfTransport = container.delivered_by
-                if mode_of_transport_at_container_arrival == ModeOfTransport.truck:
-                    time_of_entering = container.get_arrival_time(use_cache=use_cache)
-                    if (
-                            (start_date is None or time_of_entering >= start_date)
-                            and (end_date is None or time_of_entering <= end_date)
-                    ):
-                        containers_that_pass_truck_gate.append(time_of_entering)
+        if TruckGateThroughputAnalysis.throughput_over_time is None or \
+                selected_containers != TruckGateThroughputAnalysis.selected_containers:
+            container: Container
+            for container in selected_containers:
+                if inbound:
+                    mode_of_transport_at_container_arrival: ModeOfTransport = container.delivered_by
+                    if mode_of_transport_at_container_arrival == ModeOfTransport.truck:
+                        time_of_entering = container.get_arrival_time(use_cache=use_cache)
+                        if (
+                                (start_date is None or time_of_entering >= start_date)
+                                and (end_date is None or time_of_entering <= end_date)
+                        ):
+                            containers_that_pass_truck_gate.append(time_of_entering)
 
-            if outbound:
-                mode_of_transport_at_container_departure: ModeOfTransport = container.picked_up_by
-                if mode_of_transport_at_container_departure == ModeOfTransport.truck:
-                    time_of_leaving = container.get_departure_time(use_cache=use_cache)
-                    if (
-                            (start_date is None or time_of_leaving >= start_date)
-                            and (end_date is None or time_of_leaving <= end_date)
-                    ):
-                        containers_that_pass_truck_gate.append(time_of_leaving)
+                if outbound:
+                    mode_of_transport_at_container_departure: ModeOfTransport = container.picked_up_by
+                    if mode_of_transport_at_container_departure == ModeOfTransport.truck:
+                        time_of_leaving = container.get_departure_time(use_cache=use_cache)
+                        if (
+                                (start_date is None or time_of_leaving >= start_date)
+                                and (end_date is None or time_of_leaving <= end_date)
+                        ):
+                            containers_that_pass_truck_gate.append(time_of_leaving)
 
-        if len(containers_that_pass_truck_gate) == 0:
-            return {}
+            if len(containers_that_pass_truck_gate) == 0:
+                return {}
 
-        first_arrival = min(containers_that_pass_truck_gate)
-        last_pickup = max(containers_that_pass_truck_gate)
-        if start_date is not None:
-            first_arrival = min(start_date, first_arrival)
-        if end_date is not None:
-            last_pickup = max(end_date, last_pickup)
+            first_arrival = min(containers_that_pass_truck_gate)
+            last_pickup = max(containers_that_pass_truck_gate)
+            if start_date is not None:
+                first_arrival = min(start_date, first_arrival)
+            if end_date is not None:
+                last_pickup = max(end_date, last_pickup)
 
-        first_time_window = get_hour_based_time_window(first_arrival) - datetime.timedelta(hours=1)
-        last_time_window = get_hour_based_time_window(last_pickup) + datetime.timedelta(hours=1)
+            first_time_window = get_hour_based_time_window(first_arrival) - datetime.timedelta(hours=1)
+            last_time_window = get_hour_based_time_window(last_pickup) + datetime.timedelta(hours=1)
 
-        truck_gate_throughput: typing.Dict[datetime.datetime, float] = {
-            time_window: 0
-            for time_window in get_hour_based_range(first_time_window, last_time_window, True)
-        }
+            truck_gate_throughput: typing.Dict[datetime.datetime, float] = {
+                time_window: 0
+                for time_window in get_hour_based_range(first_time_window, last_time_window, True)
+            }
 
-        for time_of_container_crossing_quay_side in containers_that_pass_truck_gate:
-            time_window_of_container = get_hour_based_time_window(time_of_container_crossing_quay_side)
-            truck_gate_throughput[time_window_of_container] += 1  # counted in boxes
+            for time_of_container_crossing_quay_side in containers_that_pass_truck_gate:
+                time_window_of_container = get_hour_based_time_window(time_of_container_crossing_quay_side)
+                truck_gate_throughput[time_window_of_container] += 1  # counted in boxes
 
-        return truck_gate_throughput
+            TruckGateThroughputAnalysis.throughput_over_time = truck_gate_throughput
+            TruckGateThroughputAnalysis.selected_containers = selected_containers
+
+        return TruckGateThroughputAnalysis.throughput_over_time
