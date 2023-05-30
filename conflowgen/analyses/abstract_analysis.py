@@ -48,7 +48,19 @@ def get_week_based_range(start: datetime.date, end: datetime.date) -> typing.Lis
     ] + [end]
 
 
+class Singleton(type):
+    def __init__(cls, name, bases, class_dict):
+        super(Singleton, cls).__init__(name, bases, class_dict)
+        cls.instance = None
+
+    def __call__(cls, *args, **kw):
+        if cls.instance is None:
+            cls.instance = super(Singleton, cls).__call__(*args, **kw)
+        return cls.instance
+
+
 class AbstractAnalysis(abc.ABC):
+    __metaclass__ = Singleton
 
     def __init__(
             self,
