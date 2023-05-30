@@ -18,6 +18,9 @@ class ContainerFlowVehicleTypeAdjustmentPerVehicleAnalysis(AbstractAnalysis):
     as it is the case with :class:`.ContainerFlowVehicleTypeAdjustmentPerVehicleAnalysisReport`.
     """
 
+    vehicle_type_adjustments_per_vehicle = None
+    selected_containers = None
+
     def get_vehicle_type_adjustments_per_vehicle(
             self,
             initial_vehicle_type: ModeOfTransport | str | typing.Collection = "scheduled vehicles",
@@ -59,45 +62,51 @@ class ContainerFlowVehicleTypeAdjustmentPerVehicleAnalysis(AbstractAnalysis):
 
         selected_containers = Container.select()
 
-        if initial_vehicle_type is not None and initial_vehicle_type != "all":
-            selected_containers = self._restrict_container_picked_up_by_initial_vehicle_type(
-                selected_containers, initial_vehicle_type
-            )
+        if ContainerFlowVehicleTypeAdjustmentPerVehicleAnalysis.vehicle_type_adjustments_per_vehicle is None or \
+                ContainerFlowVehicleTypeAdjustmentPerVehicleAnalysis.selected_containers != selected_containers:
+            if initial_vehicle_type is not None and initial_vehicle_type != "all":
+                selected_containers = self._restrict_container_picked_up_by_initial_vehicle_type(
+                    selected_containers, initial_vehicle_type
+                )
 
-        if adjusted_vehicle_type is not None and adjusted_vehicle_type != "all":
-            selected_containers = self._restrict_container_picked_up_by_vehicle_type(
-                selected_containers, adjusted_vehicle_type
-            )
+            if adjusted_vehicle_type is not None and adjusted_vehicle_type != "all":
+                selected_containers = self._restrict_container_picked_up_by_vehicle_type(
+                    selected_containers, adjusted_vehicle_type
+                )
 
-        vehicle_identifiers: typing.List[VehicleIdentifier] = []
+            vehicle_identifiers: typing.List[VehicleIdentifier] = []
 
-        container: Container
-        for container in selected_containers:
-            if start_date and container.get_arrival_time(use_cache=use_cache) < start_date:
-                continue
-            if end_date and container.get_departure_time(use_cache=use_cache) > end_date:
-                continue
+            container: Container
+            for container in selected_containers:
+                if start_date and container.get_arrival_time(use_cache=use_cache) < start_date:
+                    continue
+                if end_date and container.get_departure_time(use_cache=use_cache) > end_date:
+                    continue
 
-            vehicle_identifier = self._get_vehicle_identifier_for_vehicle_picking_up_the_container(container)
+                vehicle_identifier = self._get_vehicle_identifier_for_vehicle_picking_up_the_container(container)
 
-            container_vehicle_type_has_been_adjusted = (container.picked_up_by != container.picked_up_by_initial)
+                container_vehicle_type_has_been_adjusted = (container.picked_up_by != container.picked_up_by_initial)
 
-            if container_vehicle_type_has_been_adjusted:
-                number_of_adjusted_containers_per_vehicle[vehicle_identifier] += 1
-            else:
-                number_of_non_adjusted_containers_per_vehicle[vehicle_identifier] += 1
+                if container_vehicle_type_has_been_adjusted:
+                    number_of_adjusted_containers_per_vehicle[vehicle_identifier] += 1
+                else:
+                    number_of_non_adjusted_containers_per_vehicle[vehicle_identifier] += 1
 
-            vehicle_identifiers.append(vehicle_identifier)
+                vehicle_identifiers.append(vehicle_identifier)
 
-        fraction_of_adjusted_containers = {
-            vehicle_identifier: number_of_adjusted_containers_per_vehicle[vehicle_identifier] / (
-                number_of_adjusted_containers_per_vehicle[vehicle_identifier]
-                + number_of_non_adjusted_containers_per_vehicle[vehicle_identifier]
-            )
-            for vehicle_identifier in vehicle_identifiers
-        }
+            fraction_of_adjusted_containers = {
+                vehicle_identifier: number_of_adjusted_containers_per_vehicle[vehicle_identifier] / (
+                    number_of_adjusted_containers_per_vehicle[vehicle_identifier]
+                    + number_of_non_adjusted_containers_per_vehicle[vehicle_identifier]
+                )
+                for vehicle_identifier in vehicle_identifiers
+            }
 
-        return fraction_of_adjusted_containers
+            ContainerFlowVehicleTypeAdjustmentPerVehicleAnalysis.vehicle_type_adjustments_per_vehicle = \
+                fraction_of_adjusted_containers
+            ContainerFlowVehicleTypeAdjustmentPerVehicleAnalysis.selected_containers = selected_containers
+
+        return ContainerFlowVehicleTypeAdjustmentPerVehicleAnalysis.vehicle_type_adjustments_per_vehicle
 
     @staticmethod
     def _get_vehicle_identifier_for_vehicle_picking_up_the_container(container: Container) -> VehicleIdentifier:

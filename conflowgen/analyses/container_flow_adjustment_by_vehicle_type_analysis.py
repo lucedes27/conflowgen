@@ -15,6 +15,8 @@ class ContainerFlowAdjustmentByVehicleTypeAnalysis(AbstractAnalysis):
     The analysis returns a data structure that can be used for generating reports (e.g., in text or as a figure)
     as it is the case with :class:`.ContainerFlowAdjustmentByVehicleTypeAnalysisReport`.
     """
+    containerVolumeFromOriginToDestination = None
+    selected_containers = None
 
     @staticmethod
     def get_initial_to_adjusted_outbound_flow(
@@ -42,39 +44,48 @@ class ContainerFlowAdjustmentByVehicleTypeAnalysis(AbstractAnalysis):
             vehicle type.
         """
 
-        # Initialize empty data structures
-        initial_to_adjusted_outbound_flow_in_containers: typing.Dict[
-            ModeOfTransport, typing.Dict[ModeOfTransport, float]] = {
-            vehicle_type_initial:
-                {
-                    vehicle_type_adjusted: 0
-                    for vehicle_type_adjusted in ModeOfTransport
-                }
-            for vehicle_type_initial in ModeOfTransport
-        }
-        initial_to_adjusted_outbound_flow_in_teu: typing.Dict[ModeOfTransport, typing.Dict[ModeOfTransport, float]] = {
-            vehicle_type_initial:
-                {
-                    vehicle_type_adjusted: 0
-                    for vehicle_type_adjusted in ModeOfTransport
-                }
-            for vehicle_type_initial in ModeOfTransport
-        }
+        selected_containers = Container.select()
 
-        # Iterate over all containers and count number of containers / used teu capacity
-        container: Container
-        for container in Container.select():
-            if start_date and container.get_arrival_time(use_cache=use_cache) < start_date:
-                continue
-            if end_date and container.get_departure_time(use_cache=use_cache) > end_date:
-                continue
-            vehicle_type_initial = container.picked_up_by_initial
-            vehicle_type_adjusted = container.picked_up_by
-            initial_to_adjusted_outbound_flow_in_containers[vehicle_type_initial][vehicle_type_adjusted] += 1
-            initial_to_adjusted_outbound_flow_in_teu[vehicle_type_initial][vehicle_type_adjusted] += \
-                container.occupied_teu
+        if ContainerFlowAdjustmentByVehicleTypeAnalysis.containerVolumeFromOriginToDestination is None or \
+                selected_containers != ContainerFlowAdjustmentByVehicleTypeAnalysis.selected_containers:
+            # Initialize empty data structures
+            initial_to_adjusted_outbound_flow_in_containers: typing.Dict[
+                ModeOfTransport, typing.Dict[ModeOfTransport, float]] = {
+                vehicle_type_initial:
+                    {
+                        vehicle_type_adjusted: 0
+                        for vehicle_type_adjusted in ModeOfTransport
+                    }
+                for vehicle_type_initial in ModeOfTransport
+            }
+            initial_to_adjusted_outbound_flow_in_teu: \
+                typing.Dict[ModeOfTransport, typing.Dict[ModeOfTransport, float]] = {
+                    vehicle_type_initial:
+                    {
+                        vehicle_type_adjusted: 0
+                        for vehicle_type_adjusted in ModeOfTransport
+                    }
+                    for vehicle_type_initial in ModeOfTransport
+                }
 
-        return ContainerVolumeFromOriginToDestination(
-            containers=initial_to_adjusted_outbound_flow_in_containers,
-            teu=initial_to_adjusted_outbound_flow_in_teu
-        )
+            # Iterate over all containers and count number of containers / used teu capacity
+            container: Container
+            for container in selected_containers:
+                if start_date and container.get_arrival_time(use_cache=use_cache) < start_date:
+                    continue
+                if end_date and container.get_departure_time(use_cache=use_cache) > end_date:
+                    continue
+                vehicle_type_initial = container.picked_up_by_initial
+                vehicle_type_adjusted = container.picked_up_by
+                initial_to_adjusted_outbound_flow_in_containers[vehicle_type_initial][vehicle_type_adjusted] += 1
+                initial_to_adjusted_outbound_flow_in_teu[vehicle_type_initial][vehicle_type_adjusted] += \
+                    container.occupied_teu
+
+            ContainerFlowAdjustmentByVehicleTypeAnalysis.containerVolumeFromOriginToDestination = \
+                ContainerVolumeFromOriginToDestination(
+                    containers=initial_to_adjusted_outbound_flow_in_containers,
+                    teu=initial_to_adjusted_outbound_flow_in_teu
+                )
+            ContainerFlowAdjustmentByVehicleTypeAnalysis.selected_containers = selected_containers
+
+        return ContainerFlowAdjustmentByVehicleTypeAnalysis.containerVolumeFromOriginToDestination

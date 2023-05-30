@@ -16,6 +16,8 @@ class ContainerFlowByVehicleTypeAnalysis(AbstractAnalysis):
     The analysis returns a data structure that can be used for generating reports (e.g., in text or as a figure)
     as it is the case with :class:`.ContainerFlowByVehicleTypeAnalysisReport`.
     """
+    inbound_to_outbound_flow = None
+    selected_containers = None
 
     @staticmethod
     def get_inbound_to_outbound_flow(
@@ -34,30 +36,36 @@ class ContainerFlowByVehicleTypeAnalysis(AbstractAnalysis):
             use_cache:
                 Use cache instead of re-calculating the arrival and departure time of the container.
         """
-        inbound_to_outbound_flow_in_containers: typing.Dict[ModeOfTransport, typing.Dict[ModeOfTransport, float]] = {
-            vehicle_type_inbound:
-                {
-                    vehicle_type_outbound: 0
-                    for vehicle_type_outbound in ModeOfTransport
-                }
-            for vehicle_type_inbound in ModeOfTransport
-        }
-        inbound_to_outbound_flow_in_teu = copy.deepcopy(inbound_to_outbound_flow_in_containers)
+        selected_containers = Container.select()
+        if ContainerFlowByVehicleTypeAnalysis.inbound_to_outbound_flow is None or \
+                selected_containers != ContainerFlowByVehicleTypeAnalysis.selected_containers:
+            inbound_to_outbound_flow_in_containers: typing.Dict[
+                ModeOfTransport, typing.Dict[ModeOfTransport, float]] = {
+                vehicle_type_inbound:
+                    {
+                        vehicle_type_outbound: 0
+                        for vehicle_type_outbound in ModeOfTransport
+                    }
+                for vehicle_type_inbound in ModeOfTransport
+            }
+            inbound_to_outbound_flow_in_teu = copy.deepcopy(inbound_to_outbound_flow_in_containers)
 
-        container: Container
-        for container in Container.select():
-            if start_date and container.get_arrival_time(use_cache=use_cache) < start_date:
-                continue
-            if end_date and container.get_departure_time(use_cache=use_cache) > end_date:
-                continue
-            inbound_vehicle_type = container.delivered_by
-            outbound_vehicle_type = container.picked_up_by
-            inbound_to_outbound_flow_in_containers[inbound_vehicle_type][outbound_vehicle_type] += 1
-            inbound_to_outbound_flow_in_teu[inbound_vehicle_type][outbound_vehicle_type] += container.occupied_teu
+            container: Container
+            for container in selected_containers:
+                if start_date and container.get_arrival_time(use_cache=use_cache) < start_date:
+                    continue
+                if end_date and container.get_departure_time(use_cache=use_cache) > end_date:
+                    continue
+                inbound_vehicle_type = container.delivered_by
+                outbound_vehicle_type = container.picked_up_by
+                inbound_to_outbound_flow_in_containers[inbound_vehicle_type][outbound_vehicle_type] += 1
+                inbound_to_outbound_flow_in_teu[inbound_vehicle_type][outbound_vehicle_type] += container.occupied_teu
 
-        inbound_to_outbound_flow = ContainerVolumeFromOriginToDestination(
-            containers=inbound_to_outbound_flow_in_containers,
-            teu=inbound_to_outbound_flow_in_teu
-        )
+            inbound_to_outbound_flow = ContainerVolumeFromOriginToDestination(
+                containers=inbound_to_outbound_flow_in_containers,
+                teu=inbound_to_outbound_flow_in_teu
+            )
+            ContainerFlowByVehicleTypeAnalysis.inbound_to_outbound_flow = inbound_to_outbound_flow
+            ContainerFlowByVehicleTypeAnalysis.selected_containers = selected_containers
 
-        return inbound_to_outbound_flow
+        return ContainerFlowByVehicleTypeAnalysis.inbound_to_outbound_flow

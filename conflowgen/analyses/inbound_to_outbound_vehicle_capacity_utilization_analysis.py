@@ -28,6 +28,8 @@ class InboundToOutboundVehicleCapacityUtilizationAnalysis(AbstractAnalysis):
     The analysis returns a data structure that can be used for generating reports (e.g., in text or as a figure)
     as it is the case with :class:`.InboundToOutboundCapacityUtilizationAnalysisReport`.
     """
+    inbound_and_outbound_capacity_of_each_vehicle = None
+    selected_vehicles = None
 
     def __init__(self, transportation_buffer: float):
         super().__init__(
@@ -58,42 +60,48 @@ class InboundToOutboundVehicleCapacityUtilizationAnalysis(AbstractAnalysis):
         if vehicle_type is not None and vehicle_type not in ("scheduled vehicles", "all"):
             selected_vehicles = self._restrict_vehicle_type(selected_vehicles, vehicle_type)
 
-        vehicle: LargeScheduledVehicle
-        for vehicle in selected_vehicles:
+        if InboundToOutboundVehicleCapacityUtilizationAnalysis.inbound_and_outbound_capacity_of_each_vehicle is None \
+                or InboundToOutboundVehicleCapacityUtilizationAnalysis.selected_vehicles != selected_vehicles:
+            vehicle: LargeScheduledVehicle
+            for vehicle in selected_vehicles:
 
-            # vehicle properties
-            vehicle_name = vehicle.vehicle_name
-            vehicle_arrival_time = vehicle.get_arrival_time()
-            used_capacity_on_inbound_journey = vehicle.moved_capacity
+                # vehicle properties
+                vehicle_name = vehicle.vehicle_name
+                vehicle_arrival_time = vehicle.get_arrival_time()
+                used_capacity_on_inbound_journey = vehicle.moved_capacity
 
-            if start_date and vehicle_arrival_time < start_date:
-                continue
-            if end_date and vehicle_arrival_time > end_date:
-                continue
+                if start_date and vehicle_arrival_time < start_date:
+                    continue
+                if end_date and vehicle_arrival_time > end_date:
+                    continue
 
-            # schedule properties
-            vehicle_schedule: Schedule = vehicle.schedule
-            mode_of_transport = vehicle_schedule.vehicle_type
-            service_name = vehicle_schedule.service_name
+                # schedule properties
+                vehicle_schedule: Schedule = vehicle.schedule
+                mode_of_transport = vehicle_schedule.vehicle_type
+                service_name = vehicle_schedule.service_name
 
-            used_capacity_on_outbound_journey = 0
+                used_capacity_on_outbound_journey = 0
 
-            container: Container
-            for container in Container.select().where(
-                Container.picked_up_by_large_scheduled_vehicle == vehicle
-            ):
-                used_capacity_on_outbound_journey += container.occupied_teu
+                container: Container
+                for container in Container.select().where(
+                    Container.picked_up_by_large_scheduled_vehicle == vehicle
+                ):
+                    used_capacity_on_outbound_journey += container.occupied_teu
 
-            vehicle_id = VehicleIdentifier(
-                mode_of_transport=mode_of_transport,
-                service_name=service_name,
-                vehicle_name=vehicle_name,
-                vehicle_arrival_time=vehicle_arrival_time
-            )
+                vehicle_id = VehicleIdentifier(
+                    mode_of_transport=mode_of_transport,
+                    service_name=service_name,
+                    vehicle_name=vehicle_name,
+                    vehicle_arrival_time=vehicle_arrival_time
+                )
 
-            capacities[vehicle_id] = InboundAndOutboundCapacity(
-                inbound_capacity=used_capacity_on_inbound_journey,
-                outbound_capacity=used_capacity_on_outbound_journey
-            )
+                capacities[vehicle_id] = InboundAndOutboundCapacity(
+                    inbound_capacity=used_capacity_on_inbound_journey,
+                    outbound_capacity=used_capacity_on_outbound_journey
+                )
 
-        return capacities
+            InboundToOutboundVehicleCapacityUtilizationAnalysis.inbound_and_outbound_capacity_of_each_vehicle = \
+                capacities
+            InboundToOutboundVehicleCapacityUtilizationAnalysis.selected_vehicles = selected_vehicles
+
+        return InboundToOutboundVehicleCapacityUtilizationAnalysis.inbound_and_outbound_capacity_of_each_vehicle

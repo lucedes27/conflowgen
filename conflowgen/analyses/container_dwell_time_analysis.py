@@ -15,6 +15,8 @@ class ContainerDwellTimeAnalysis(AbstractAnalysis):
     The analysis returns a data structure that can be used for generating reports (e.g., in text or as a figure)
     as it is the case with :class:`.ContainerDwellTimeAnalysisReport`.
     """
+    container_dwell_times = None
+    selected_containers = None
 
     def get_container_dwell_times(
             self,
@@ -56,35 +58,42 @@ class ContainerDwellTimeAnalysis(AbstractAnalysis):
         Returns:
             A set of container dwell times.
         """
-        container_dwell_times: set[datetime.timedelta] = set()
 
         selected_containers = Container.select()
 
-        if storage_requirement != "all":
-            selected_containers = self._restrict_storage_requirement(
-                selected_containers, storage_requirement
-            )
+        if ContainerDwellTimeAnalysis.container_dwell_times is None \
+                or selected_containers != ContainerDwellTimeAnalysis.selected_containers:
+            container_dwell_times: set[datetime.timedelta] = set()
 
-        if container_delivered_by_vehicle_type != "all":
-            selected_containers = self._restrict_container_delivered_by_vehicle_type(
-                selected_containers, container_delivered_by_vehicle_type
-            )
+            if storage_requirement != "all":
+                selected_containers = self._restrict_storage_requirement(
+                    selected_containers, storage_requirement
+                )
 
-        if container_picked_up_by_vehicle_type != "all":
-            selected_containers = self._restrict_container_picked_up_by_vehicle_type(
-                selected_containers, container_picked_up_by_vehicle_type
-            )
+            if container_delivered_by_vehicle_type != "all":
+                selected_containers = self._restrict_container_delivered_by_vehicle_type(
+                    selected_containers, container_delivered_by_vehicle_type
+                )
 
-        container: Container
-        for container in selected_containers:
-            container_enters_yard = container.get_arrival_time(use_cache=use_cache)
-            container_leaves_yard = container.get_departure_time(use_cache=use_cache)
-            assert container_enters_yard < container_leaves_yard, "A container should enter the yard before leaving it"
-            if start_date and container_enters_yard < start_date:
-                continue
-            if end_date and container_leaves_yard > end_date:
-                continue
-            container_dwell_time = container_leaves_yard - container_enters_yard
-            container_dwell_times.add(container_dwell_time)
+            if container_picked_up_by_vehicle_type != "all":
+                selected_containers = self._restrict_container_picked_up_by_vehicle_type(
+                    selected_containers, container_picked_up_by_vehicle_type
+                )
 
-        return container_dwell_times
+            container: Container
+            for container in selected_containers:
+                container_enters_yard = container.get_arrival_time(use_cache=use_cache)
+                container_leaves_yard = container.get_departure_time(use_cache=use_cache)
+                assert container_enters_yard < container_leaves_yard, "A container should enter the yard before " \
+                                                                      "leaving it"
+                if start_date and container_enters_yard < start_date:
+                    continue
+                if end_date and container_leaves_yard > end_date:
+                    continue
+                container_dwell_time = container_leaves_yard - container_enters_yard
+                container_dwell_times.add(container_dwell_time)
+
+            ContainerDwellTimeAnalysis.selected_containers = selected_containers
+            ContainerDwellTimeAnalysis.container_dwell_times = container_dwell_times
+
+        return ContainerDwellTimeAnalysis.container_dwell_times
